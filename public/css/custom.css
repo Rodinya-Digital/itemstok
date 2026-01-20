@@ -1,0 +1,14 @@
+.product-sdesc{
+    height: 100px;
+    max-height: 100px;
+    overflow: hidden;
+}
+.product-img-div{
+    overflow: hidden;
+    min-height: 250px;
+    height: 250px;
+    max-height: 250px;
+}
+.product-img-div{
+    /*height: 100%!important;*/
+}

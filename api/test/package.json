@@ -1,0 +1,20 @@
+{
+  "name": "freepik-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "archiver": "^6.0.1",
+    "axios": "^1.6.7",
+    "node-downloader-helper": "^2.1.9",
+    "puppeteer": "^21.9.0"
+  },
+  "devDependencies": {
+    "puppeteer-extra": "^3.3.6"
+  }
+}
