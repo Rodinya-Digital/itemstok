@@ -24,6 +24,8 @@
     <link href="{{ asset('assets_connect/css/connect.min.css')}}" rel="stylesheet">
     <link href="{{ asset('assets_connect/css/dark_theme.css')}}" rel="stylesheet">
     <link href="{{ asset('assets_connect/css/custom.css')}}" rel="stylesheet">
+    <!-- SEO Group Buy Modern Theme -->
+    <link href="{{ asset('assets_connect/css/seo-groupbuy-theme.css')}}" rel="stylesheet">
 
     <link rel="stylesheet" href="{{asset('FrontV1/vendor/fonts/tabler-icons.css')}}">
     <link rel="stylesheet" href="{{asset('FrontV1/vendor/fonts/flag-icons.css')}}">
