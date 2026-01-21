@@ -2,8 +2,6 @@
 node_modules/
 vendor/
 
-# Environment
-
 # IDE
 .idea/
 .vscode/
@@ -32,11 +30,3 @@ bootstrap/cache/*
 .DS_Store
 Thumbs.db
 itemstok.zip
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
