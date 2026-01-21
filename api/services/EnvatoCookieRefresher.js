@@ -322,7 +322,7 @@ async function refreshCookiesForAccount(accountName) {
 }
 
 /**
- * Tum Envato Elements hesaplarinin cookie'lerini yenile
+ * Tum Envato Elements hesaplarinin cookie'lerini yenile/login yap
  */
 async function refreshAllEnvatoCookies() {
     if (!CONFIG.enabled) {
@@ -330,23 +330,32 @@ async function refreshAllEnvatoCookies() {
         return;
     }
     
-    console.log(`${CONFIG.logPrefix} ========== Cookie Refresh Basladi ==========`);
+    console.log(`${CONFIG.logPrefix} ========== Cookie Refresh/Login Basladi ==========`);
     const startTime = Date.now();
     
+    // Not: Tek hesap kullaniliyor, iki hesap icin duplicate yapilabilir
     const accounts = ['envatoelements1', 'envatoelements2'];
     const results = {};
     
     for (const account of accounts) {
         results[account] = await refreshCookiesForAccount(account);
-        // Hesaplar arasi kisa bekleme (rate limiting onlemi)
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Hesaplar arasi bekleme (rate limiting onlemi)
+        await new Promise(resolve => setTimeout(resolve, 10000));
     }
     
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`${CONFIG.logPrefix} ========== Cookie Refresh Tamamlandi (${duration}s) ==========`);
-    console.log(`${CONFIG.logPrefix} Sonuclar:`, JSON.stringify(results));
+    console.log(`${CONFIG.logPrefix} ========== Cookie Refresh/Login Tamamlandi (${duration}s) ==========`);
+    console.log(`${CONFIG.logPrefix} Sonuclar:`, JSON.stringify(results, null, 2));
     
     return results;
+}
+
+/**
+ * Sadece login yap (manuel tetikleme icin)
+ */
+async function forceLogin(accountName = 'envatoelements1') {
+    console.log(`${CONFIG.logPrefix} ZORLA LOGIN tetiklendi: ${accountName}`);
+    return await loginAndGetCookies(accountName);
 }
 
 /**
@@ -357,14 +366,20 @@ function startCronJob() {
     
     // Cron job'i olustur
     const job = cron.schedule(CONFIG.cronSchedule, async () => {
-        console.log(`${CONFIG.logPrefix} Zamanlanmis cookie refresh tetiklendi.`);
+        console.log(`${CONFIG.logPrefix} Zamanlanmis cookie refresh/login tetiklendi.`);
         await refreshAllEnvatoCookies();
     }, {
         scheduled: true,
         timezone: 'Europe/Istanbul'
     });
     
-    console.log(`${CONFIG.logPrefix} Cron job aktif! Her 15 dakikada bir calisacak.`);
+    console.log(`${CONFIG.logPrefix} Cron job aktif! Her 6 saatte bir calisacak.`);
+    
+    // Baslangicta bir kez calistir (5 saniye sonra)
+    setTimeout(async () => {
+        console.log(`${CONFIG.logPrefix} Baslangic kontrolu yapiliyor...`);
+        await refreshAllEnvatoCookies();
+    }, 5000);
     
     return job;
 }
@@ -400,7 +415,12 @@ function getStatus() {
     return {
         enabled: CONFIG.enabled,
         schedule: CONFIG.cronSchedule,
-        targetUrl: CONFIG.targetUrl
+        loginUrl: CONFIG.loginUrl,
+        targetUrl: CONFIG.targetUrl,
+        credentials: {
+            email: ENVATO_CREDENTIALS.email,
+            passwordSet: !!ENVATO_CREDENTIALS.password
+        }
     };
 }
 
@@ -409,6 +429,8 @@ module.exports = {
     manualRefresh,
     refreshAllEnvatoCookies,
     refreshCookiesForAccount,
+    loginAndGetCookies,
+    forceLogin,
     disable,
     enable,
     getStatus
