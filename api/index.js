@@ -91,46 +91,8 @@ app.get('/lastChange', async (req, res) => {
     return res.send(new Date(lastModified[0].modified).toLocaleString())
 })
 
-// Envato Cookie Refresh Manuel Tetikleme Endpoint'i
-app.get('/envato-refresh', async (req, res) => {
-    const key = req.query.key;
-    if (!validateApiKey(key)) {
-        return res.json({ success: false, error: 'Invalid key' });
-    }
-    
-    try {
-        console.log('[API] Manuel Envato cookie refresh tetiklendi...');
-        const result = await EnvatoCookieRefresher.manualRefresh();
-        return res.json({ success: true, result: result });
-    } catch (e) {
-        console.error('[API] Envato refresh hatasi:', e.message);
-        return res.json({ success: false, error: e.message });
-    }
-})
-
-// Envato Cookie Refresh Durum Endpoint'i
-app.get('/envato-refresh-status', async (req, res) => {
-    const status = EnvatoCookieRefresher.getStatus();
-    return res.json({ success: true, status: status });
-})
-// Envato ZORLA LOGIN Endpoint'i (Yeni cookie almak icin)
-app.get('/envato-force-login', async (req, res) => {
-    const key = req.query.key;
-    if (!validateApiKey(key)) {
-        return res.json({ success: false, error: 'Invalid key' });
-    }
-    
-    const account = req.query.account || 'envatoelements1';
-    
-    try {
-        console.log('[API] Envato ZORLA LOGIN tetiklendi: ' + account);
-        const result = await EnvatoCookieRefresher.forceLogin(account);
-        return res.json({ success: true, result: result });
-    } catch (e) {
-        console.error('[API] Envato force login hatasi:', e.message);
-        return res.json({ success: false, error: e.message });
-    }
-})
+// Envato artık her istekte otomatik login yapıyor
+// Cookie yönetimi endpoint'leri kaldırıldı
 
 function cleanURL(url) {
     try {
