@@ -1,19 +1,19 @@
 /**
  * Merkezi Credentials Yönetimi
  * 
- * Tüm hassas bilgiler burada toplanmıştır.
- * Production'da bu değerler environment variable'lardan alınmalıdır.
- * 
- * Kullanım:
- * const { DB_CONFIG, S3_CONFIG, API_KEY } = require('./config/credentials');
+ * Tüm hassas bilgiler .env dosyasından okunur.
+ * Dosya: /app/api/.env
  */
+
+// .env dosyasını yükle
+require('dotenv').config({ path: __dirname + '/../.env' });
 
 // Veritabanı Ayarları
 const DB_CONFIG = {
-    host: process.env.DB_HOST || '188.132.168.79',
-    user: process.env.DB_USER || 'itemstok_org',
-    password: process.env.DB_PASSWORD || 'WrNuGSDlK6W7rKgG',
-    database: process.env.DB_NAME || 'itemstok_org',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     charset: 'utf8mb4',
     waitForConnections: true,
     connectionLimit: 10,
@@ -25,30 +25,30 @@ const DB_CONFIG = {
 
 // AWS S3 Ayarları (iDrive e2)
 const S3_CONFIG = {
-    endpoint: process.env.S3_ENDPOINT || 'r8w1.fra.idrivee2-36.com',
-    accessKeyId: process.env.S3_ACCESS_KEY || '7M6ATvoK22BBflnKg9K8',
-    secretAccessKey: process.env.S3_SECRET_KEY || 'ffEJ2j5mbNbzdzaxbdqt2527226xm5Aj60SU4CX2',
-    bucketName: process.env.S3_BUCKET || 'itemstok'
+    endpoint: process.env.S3_ENDPOINT,
+    accessKeyId: process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.S3_SECRET_KEY,
+    bucketName: process.env.S3_BUCKET
 };
 
 // API Güvenlik Anahtarı
-const API_KEY = process.env.API_SECRET_KEY || 'sdasdas333';
+const API_KEY = process.env.API_SECRET_KEY;
 
 // Envato Hesap Bilgileri
 const ENVATO_CREDENTIALS = {
-    email: process.env.ENVATO_EMAIL || 'rodinyatools@rodinyadijital.com',
-    password: process.env.ENVATO_PASSWORD || 'Oguzhan99.'
+    email: process.env.ENVATO_EMAIL,
+    password: process.env.ENVATO_PASSWORD
 };
 
 // Telegram Bot Ayarları
 const TELEGRAM_CONFIG = {
-    token: process.env.TELEGRAM_BOT_TOKEN || '8097121235:AAHOlFfgxfhqG_tBMnuGcvRnR6xj6n2bbus',
-    chatId: process.env.TELEGRAM_CHAT_ID || '-4748936019'
+    token: process.env.TELEGRAM_BOT_TOKEN,
+    chatId: process.env.TELEGRAM_CHAT_ID
 };
 
 // 2Captcha API Key (reCAPTCHA çözmek için)
 const CAPTCHA_CONFIG = {
-    apiKey: process.env.CAPTCHA_API_KEY || 'f11f25a7e32dfb9ddf74eec3181a19f4',
+    apiKey: process.env.CAPTCHA_API_KEY,
     // Envato'nun bilinen reCAPTCHA site key'i
     envatoSiteKey: '6LcjX04UAAAAANHJ3jT8TPbv1BlGmymOxfFwj-wt'
 };
