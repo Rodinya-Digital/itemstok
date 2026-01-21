@@ -30,3 +30,7 @@ bootstrap/cache/*
 .DS_Store
 Thumbs.db
 itemstok.zip
+-e 
+# Environment files
+*.env
+*.env.*
