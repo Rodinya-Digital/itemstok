@@ -46,6 +46,13 @@ const TELEGRAM_CONFIG = {
     chatId: process.env.TELEGRAM_CHAT_ID || '-4748936019'
 };
 
+// 2Captcha API Key (reCAPTCHA çözmek için)
+const CAPTCHA_CONFIG = {
+    apiKey: process.env.CAPTCHA_API_KEY || 'f11f25a7e32dfb9ddf74eec3181a19f4',
+    // Envato'nun bilinen reCAPTCHA site key'i
+    envatoSiteKey: '6LcjX04UAAAAANHJ3jT8TPbv1BlGmymOxfFwj-wt'
+};
+
 // Service Prefix'leri (S3 klasör yapısı)
 const SERVICE_PREFIXES = {
     envatoElements: 'ee/',
