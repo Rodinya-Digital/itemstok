@@ -51,13 +51,8 @@ setInterval(async () => {
     }
 }, 60000)
 
-// Envato Cookie Refresher Cron Job'ini baslat (her 15 dakikada bir)
-try {
-    EnvatoCookieRefresher.startCronJob();
-    console.log('[SYSTEM] Envato Cookie Refresher baslatildi.');
-} catch (e) {
-    console.log('[SYSTEM] Envato Cookie Refresher baslatilamadi:', e.message);
-}
+// Envato artik her istekte login yapiyor - cron job kaldirildi
+console.log('[SYSTEM] Envato: Her indirme isteginde otomatik login yapilacak.');
 
 const NotificationSMS = (message) => {
     // Telegram Bot - Merkezi config kullan
