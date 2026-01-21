@@ -19,8 +19,8 @@ const cheerio = require('cheerio');
 const getItemEpidemicSound = require('./api/EpidemicSound/index');
 const getItemFlaticon = require('./api/Flaticon/index');
 
-// Envato Cookie Refresher - Session'lari canli tutar
-const EnvatoCookieRefresher = require('./services/EnvatoCookieRefresher');
+// Envato artik her istekte login yapiyor, cron job'a gerek yok
+// const EnvatoCookieRefresher = require('./services/EnvatoCookieRefresher');
 
 // Merkezi Credentials Config
 const { S3_CONFIG, API_KEY, TELEGRAM_CONFIG, validateApiKey } = require('./config/credentials');
