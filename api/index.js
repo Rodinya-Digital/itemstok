@@ -94,7 +94,7 @@ app.get('/lastChange', async (req, res) => {
 // Envato Cookie Refresh Manuel Tetikleme Endpoint'i
 app.get('/envato-refresh', async (req, res) => {
     const key = req.query.key;
-    if (key !== 'sdasdas333') {
+    if (!validateApiKey(key)) {
         return res.json({ success: false, error: 'Invalid key' });
     }
     
