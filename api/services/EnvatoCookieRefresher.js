@@ -60,126 +60,264 @@ const CONFIG = {
 };
 
 /**
- * sameSite degerini Playwright formatina normalize et
+ * Rastgele bekleme suresi olustur (insan davranisi simulasyonu)
  */
-function normalizeSameSite(sameSite) {
-    const ss = String(sameSite || '').toLowerCase();
-    if (ss === 'strict') return 'Strict';
-    if (ss === 'lax') return 'Lax';
-    if (ss === 'none' || ss === 'no_restriction') return 'None';
-    return 'Lax'; // Varsayilan
+function randomDelay(min = 1000, max = 3000) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /**
- * Cookie'leri Playwright formatina donustur
+ * Insan benzeri yazmak icin karakter karakter yaz
  */
-function formatCookiesForPlaywright(cookies) {
-    return cookies.map(cookie => ({
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain || '.envato.com',
-        path: cookie.path || '/',
-        expires: cookie.expires ? Math.floor(new Date(cookie.expires).getTime() / 1000) : -1,
-        httpOnly: cookie.httpOnly || false,
-        secure: cookie.secure || false,
-        sameSite: normalizeSameSite(cookie.sameSite)
-    }));
+async function humanType(page, selector, text) {
+    await page.click(selector);
+    await page.waitForTimeout(randomDelay(300, 600));
+    
+    for (const char of text) {
+        await page.type(selector, char, { delay: randomDelay(50, 150) });
+    }
 }
 
 /**
- * Tek bir hesabin cookie'lerini yenile
+ * Envato'ya giris yap ve tum cookie'leri al (HttpOnly dahil)
+ */
+async function loginAndGetCookies(accountName) {
+    let browser = null;
+    
+    try {
+        console.log(`${CONFIG.logPrefix} ${accountName} icin LOGIN basladi...`);
+        
+        // 1. Playwright browser baslat (stealth mode)
+        browser = await chromium.launch(CONFIG.browserOptions);
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport: { width: 1920, height: 1080 },
+            locale: 'en-US',
+            timezoneId: 'Europe/Istanbul',
+            // Automation detection'i bypass et
+            extraHTTPHeaders: {
+                'Accept-Language': 'en-US,en;q=0.9,tr;q=0.8'
+            }
+        });
+        
+        // Automation flag'lerini gizle
+        await context.addInitScript(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en', 'tr'] });
+            window.chrome = { runtime: {} };
+        });
+        
+        const page = await context.newPage();
+        page.setDefaultTimeout(CONFIG.navigationTimeout);
+        
+        // 2. Login sayfasina git
+        console.log(`${CONFIG.logPrefix} Login sayfasina gidiliyor...`);
+        await page.goto(CONFIG.loginUrl, {
+            waitUntil: 'networkidle',
+            timeout: CONFIG.navigationTimeout
+        });
+        
+        await page.waitForTimeout(randomDelay(2000, 4000));
+        
+        // 3. Zaten giris yapilmis mi kontrol et
+        const currentUrl = page.url();
+        if (currentUrl.includes('elements.envato.com') && !currentUrl.includes('sign_in')) {
+            console.log(`${CONFIG.logPrefix} Zaten giris yapilmis!`);
+        } else {
+            // 4. Email gir
+            console.log(`${CONFIG.logPrefix} Email giriliyor...`);
+            const emailSelector = 'input[name="user[login]"], input[type="email"], #user_login';
+            await page.waitForSelector(emailSelector, { timeout: CONFIG.loginTimeout });
+            await humanType(page, emailSelector, ENVATO_CREDENTIALS.email);
+            
+            await page.waitForTimeout(randomDelay(500, 1000));
+            
+            // 5. Sifre gir
+            console.log(`${CONFIG.logPrefix} Sifre giriliyor...`);
+            const passwordSelector = 'input[name="user[password]"], input[type="password"], #user_password';
+            await page.waitForSelector(passwordSelector, { timeout: CONFIG.loginTimeout });
+            await humanType(page, passwordSelector, ENVATO_CREDENTIALS.password);
+            
+            await page.waitForTimeout(randomDelay(500, 1500));
+            
+            // 6. Giris butonuna tikla
+            console.log(`${CONFIG.logPrefix} Giris butonuna tiklaniyor...`);
+            const submitSelector = 'button[type="submit"], input[type="submit"], .btn-submit, [data-testid="sign-in-button"]';
+            await page.click(submitSelector);
+            
+            // 7. Giris sonrasi bekle
+            console.log(`${CONFIG.logPrefix} Giris sonrasi bekleniyor...`);
+            await page.waitForNavigation({ 
+                waitUntil: 'networkidle',
+                timeout: CONFIG.navigationTimeout 
+            }).catch(() => {});
+            
+            await page.waitForTimeout(randomDelay(3000, 5000));
+        }
+        
+        // 8. Elements sayfasina git (cookie'lerin tam olusması icin)
+        console.log(`${CONFIG.logPrefix} Elements sayfasina gidiliyor...`);
+        await page.goto(CONFIG.baseUrl, {
+            waitUntil: 'networkidle',
+            timeout: CONFIG.navigationTimeout
+        });
+        
+        await page.waitForTimeout(randomDelay(2000, 4000));
+        
+        // 9. Account sayfasina git
+        await page.goto(CONFIG.targetUrl, {
+            waitUntil: 'networkidle',
+            timeout: CONFIG.navigationTimeout
+        });
+        
+        await page.waitForTimeout(randomDelay(2000, 3000));
+        
+        // 10. Giris basarili mi kontrol et
+        const finalUrl = page.url();
+        if (finalUrl.includes('sign_in') || finalUrl.includes('login')) {
+            console.error(`${CONFIG.logPrefix} GIRIS BASARISIZ! Hala login sayfasinda.`);
+            
+            // Screenshot al (debug icin)
+            await page.screenshot({ path: '/app/api/services/login_failed.png' });
+            
+            await browser.close();
+            return { success: false, reason: 'login_failed', message: 'Giris yapilamadi, sifre veya email yanlis olabilir.' };
+        }
+        
+        // 11. TUM cookie'leri al (HttpOnly dahil!)
+        console.log(`${CONFIG.logPrefix} Cookie'ler aliniyor...`);
+        const allCookies = await context.cookies();
+        
+        // 12. Cookie'leri filtrele (sadece envato domain'leri)
+        const envatoCookies = allCookies.filter(c => 
+            c.domain.includes('envato.com') || 
+            c.domain.includes('.envato.com')
+        );
+        
+        console.log(`${CONFIG.logPrefix} Toplam ${envatoCookies.length} cookie alindi.`);
+        
+        // Kritik cookie'lerin varligini kontrol et
+        const hasEnvatoId = envatoCookies.some(c => c.name === 'envatoid');
+        const hasSession = envatoCookies.some(c => c.name.includes('session'));
+        
+        console.log(`${CONFIG.logPrefix} Kritik cookie'ler: envatoid=${hasEnvatoId}, session=${hasSession}`);
+        
+        if (!hasEnvatoId) {
+            console.warn(`${CONFIG.logPrefix} UYARI: envatoid cookie'si bulunamadi!`);
+        }
+        
+        // 13. DB'ye kaydet
+        const cookieJson = JSON.stringify(envatoCookies);
+        await updateTypeCookie(accountName, cookieJson);
+        
+        console.log(`${CONFIG.logPrefix} ${accountName}: Cookie'ler basariyla kaydedildi! (${envatoCookies.length} cookie)`);
+        
+        // Basari screenshot'i (debug icin)
+        await page.screenshot({ path: '/app/api/services/login_success.png' });
+        
+        await browser.close();
+        return { 
+            success: true, 
+            message: 'Login basarili, cookie\'ler kaydedildi', 
+            cookieCount: envatoCookies.length,
+            hasEnvatoId,
+            hasSession
+        };
+        
+    } catch (error) {
+        console.error(`${CONFIG.logPrefix} ${accountName}: LOGIN HATASI - ${error.message}`);
+        if (browser) {
+            try { await browser.close(); } catch (e) {}
+        }
+        return { success: false, reason: 'error', error: error.message };
+    }
+}
+
+/**
+ * Mevcut cookie'lerle session'i kontrol et, gerekirse login yap
  */
 async function refreshCookiesForAccount(accountName) {
     let browser = null;
     
     try {
-        console.log(`${CONFIG.logPrefix} ${accountName} icin cookie yenileme basladi...`);
+        console.log(`${CONFIG.logPrefix} ${accountName} icin cookie kontrolu basladi...`);
         
-        // 1. DB'den mevcut cookie'leri al (dogrudan hesap adi ile)
+        // 1. Oncelikle mevcut cookie'lerle dene
         const accountData = await getTypeCookie(accountName);
         
+        // Cookie yoksa veya cok azsa direkt login yap
         if (!accountData || !accountData.cookie) {
-            console.log(`${CONFIG.logPrefix} ${accountName}: Cookie bulunamadi, atlaniyor.`);
-            return { success: false, reason: 'no_cookie' };
+            console.log(`${CONFIG.logPrefix} ${accountName}: Cookie bulunamadi, LOGIN yapiliyor...`);
+            return await loginAndGetCookies(accountName);
         }
         
         let cookies;
         try {
             cookies = JSON.parse(accountData.cookie);
         } catch (e) {
-            console.log(`${CONFIG.logPrefix} ${accountName}: Cookie parse hatasi, atlaniyor.`);
-            return { success: false, reason: 'parse_error' };
+            console.log(`${CONFIG.logPrefix} ${accountName}: Cookie parse hatasi, LOGIN yapiliyor...`);
+            return await loginAndGetCookies(accountName);
         }
         
         if (!Array.isArray(cookies) || cookies.length < 3) {
-            console.log(`${CONFIG.logPrefix} ${accountName}: Yetersiz cookie sayisi (${cookies?.length || 0}), atlaniyor.`);
-            return { success: false, reason: 'insufficient_cookies' };
+            console.log(`${CONFIG.logPrefix} ${accountName}: Yetersiz cookie, LOGIN yapiliyor...`);
+            return await loginAndGetCookies(accountName);
         }
         
-        // 2. Playwright browser baslat
+        // 2. Mevcut cookie'lerle session test et
         browser = await chromium.launch(CONFIG.browserOptions);
         const context = await browser.newContext({
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             viewport: { width: 1920, height: 1080 }
         });
         
-        // 3. Mevcut cookie'leri ekle
-        const formattedCookies = formatCookiesForPlaywright(cookies);
+        // Cookie'leri formatla ve ekle
+        const formattedCookies = cookies.map(cookie => ({
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain || '.envato.com',
+            path: cookie.path || '/',
+            expires: cookie.expires ? Math.floor(new Date(cookie.expires).getTime() / 1000) : -1,
+            httpOnly: cookie.httpOnly || false,
+            secure: cookie.secure || false,
+            sameSite: 'Lax'
+        }));
+        
         await context.addCookies(formattedCookies);
         
-        // 4. Sayfaya git
         const page = await context.newPage();
         page.setDefaultTimeout(CONFIG.navigationTimeout);
         
-        console.log(`${CONFIG.logPrefix} ${accountName}: Envato'ya baglaniliyor...`);
+        console.log(`${CONFIG.logPrefix} ${accountName}: Session test ediliyor...`);
         
         await page.goto(CONFIG.targetUrl, {
             waitUntil: 'domcontentloaded',
             timeout: CONFIG.navigationTimeout
         });
         
-        // 5. Sayfanin yuklenmesini bekle
-        await page.waitForTimeout(CONFIG.waitTimeout);
+        await page.waitForTimeout(5000);
         
-        // 6. Login durumunu kontrol et
+        // 3. Session gecerli mi kontrol et
         const currentUrl = page.url();
+        await browser.close();
+        
         if (currentUrl.includes('sign_in') || currentUrl.includes('login')) {
-            console.log(`${CONFIG.logPrefix} ${accountName}: Session expire olmus, login sayfasina yonlendirildi.`);
-            await browser.close();
-            return { success: false, reason: 'session_expired' };
+            console.log(`${CONFIG.logPrefix} ${accountName}: Session EXPIRE olmus, yeniden LOGIN yapiliyor...`);
+            return await loginAndGetCookies(accountName);
         }
         
-        // 7. Yeni cookie'leri al
-        const newCookies = await context.cookies();
-        
-        // 8. KRITIK COOKIE'LERI KORU, sadece Cloudflare ve session cookie'lerini guncelle
-        // HttpOnly olan envatoid, elements.session.5 gibi cookie'ler Playwright ile alinamaz
-        const criticalCookieNames = ['envatoid', 'envato_client_id'];
-        
-        // Orijinal kritik cookie'leri koru
-        const originalCritical = cookies.filter(c => criticalCookieNames.includes(c.name));
-        
-        // Yeni cookie'lerden kritik olmayanlari al
-        const newNonCritical = newCookies.filter(c => !criticalCookieNames.includes(c.name));
-        
-        // Birlesik cookie listesi: orijinal kritikler + yeni diger cookie'ler
-        const mergedCookies = [...originalCritical, ...newNonCritical];
-        
-        // DB'ye kaydet
-        const cookieJson = JSON.stringify(mergedCookies);
-        await updateTypeCookie(accountName, cookieJson);
-        
-        console.log(`${CONFIG.logPrefix} ${accountName}: Cookie'ler guncellendi! (${originalCritical.length} kritik korundu, ${newNonCritical.length} yenilendi)`);
-        
-        await browser.close();
-        return { success: true, message: 'Cookies refreshed', criticalPreserved: originalCritical.length, refreshed: newNonCritical.length };
+        console.log(`${CONFIG.logPrefix} ${accountName}: Session GECERLI, cookie yenileme gerekmiyor.`);
+        return { success: true, message: 'Session hala gecerli', needsLogin: false };
         
     } catch (error) {
         console.error(`${CONFIG.logPrefix} ${accountName}: Hata - ${error.message}`);
         if (browser) {
             try { await browser.close(); } catch (e) {}
         }
-        return { success: false, reason: 'error', error: error.message };
+        // Hata durumunda login dene
+        console.log(`${CONFIG.logPrefix} ${accountName}: Hata nedeniyle LOGIN deneniyor...`);
+        return await loginAndGetCookies(accountName);
     }
 }
 
