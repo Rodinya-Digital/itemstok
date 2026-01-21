@@ -112,7 +112,7 @@ const getItemFlatIcon = async (getTheUrl, downloadButtonSelectorKey) => {
             }
 
             const browser = await puppeteer.launch({
-                headless: false,
+                headless: 'new',
                 args: [
                     '--disable-cache',
                     '--disk-cache-size=0',
