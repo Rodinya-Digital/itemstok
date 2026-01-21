@@ -70,6 +70,7 @@ async function getFreepikDownChecker() {
         console.error('Database Error:', error);
     } finally {
         console.log('Freepik DownChecker Finished');
+        // 5 dakika (300000ms) bekle - sunucu kaynaklarını korumak için
         setTimeout(() => {
             getFreepikDownChecker()
         }, 300000)
