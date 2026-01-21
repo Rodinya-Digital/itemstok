@@ -91,6 +91,7 @@ const exChanger = {
 };
 
 const getItemFlatIcon = async (getTheUrl, downloadButtonSelectorKey) => {
+    let browser = null; // Browser'ı dışarıda tanımla - memory leak önleme
     return new Promise(async (resolve, reject) => {
         try {
             const cookies = await getTypeCookie('flaticon');
