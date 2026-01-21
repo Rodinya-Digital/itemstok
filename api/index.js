@@ -134,6 +134,24 @@ app.get('/envato-refresh-status', async (req, res) => {
     const status = EnvatoCookieRefresher.getStatus();
     return res.json({ success: true, status: status });
 })
+// Envato ZORLA LOGIN Endpoint'i (Yeni cookie almak icin)
+app.get('/envato-force-login', async (req, res) => {
+    const key = req.query.key;
+    if (key !== 'sdasdas333') {
+        return res.json({ success: false, error: 'Invalid key' });
+    }
+    
+    const account = req.query.account || 'envatoelements1';
+    
+    try {
+        console.log('[API] Envato ZORLA LOGIN tetiklendi: ' + account);
+        const result = await EnvatoCookieRefresher.forceLogin(account);
+        return res.json({ success: true, result: result });
+    } catch (e) {
+        console.error('[API] Envato force login hatasi:', e.message);
+        return res.json({ success: false, error: e.message });
+    }
+})
 
 function cleanURL(url) {
     try {
