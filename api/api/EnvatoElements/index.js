@@ -252,6 +252,12 @@ async function loginToEnvato(browser) {
     await humanType(page, passwordSelector, ENVATO_CREDENTIALS.password);
     await page.waitForTimeout(randomDelay(300, 800));
     
+    // Captcha kontrolü - giriş butonundan ÖNCE
+    const hadCaptcha = await handleCaptchaIfPresent(page);
+    if (hadCaptcha) {
+        console.log(`${CONFIG.logPrefix} Captcha çözüldü, giriş yapılıyor...`);
+    }
+    
     // Giriş butonuna tıkla
     console.log(`${CONFIG.logPrefix} Giriş yapılıyor...`);
     const submitSelector = 'button[type="submit"], input[type="submit"]';
@@ -260,6 +266,24 @@ async function loginToEnvato(browser) {
     // Giriş sonrası bekle
     await page.waitForNavigation({ waitUntil: 'networkidle', timeout: CONFIG.navigationTimeout }).catch(() => {});
     await page.waitForTimeout(randomDelay(2000, 4000));
+    
+    // Giriş sonrası tekrar captcha kontrolü (bazen giriş sonrası da çıkabiliyor)
+    const postLoginUrl = page.url();
+    if (postLoginUrl.includes('sign_in') || postLoginUrl.includes('login') || postLoginUrl.includes('challenge')) {
+        console.log(`${CONFIG.logPrefix} Giriş sonrası ek doğrulama gerekebilir, kontrol ediliyor...`);
+        
+        const hadPostCaptcha = await handleCaptchaIfPresent(page);
+        if (hadPostCaptcha) {
+            // Tekrar submit et
+            try {
+                await page.click(submitSelector);
+                await page.waitForNavigation({ waitUntil: 'networkidle', timeout: CONFIG.navigationTimeout }).catch(() => {});
+                await page.waitForTimeout(randomDelay(2000, 4000));
+            } catch (e) {
+                console.log(`${CONFIG.logPrefix} Post-captcha submit hatası:`, e.message);
+            }
+        }
+    }
     
     // Giriş başarılı mı kontrol et
     const finalUrl = page.url();
