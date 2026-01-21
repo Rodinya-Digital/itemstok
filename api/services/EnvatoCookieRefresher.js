@@ -1,15 +1,14 @@
 /**
- * Envato Elements Cookie Refresher
+ * Envato Elements Cookie Refresher - v2.0 (Auto Login)
  * 
- * Bu modul mevcut cookie'leri kullanarak Envato'ya periyodik olarak
- * baglanir ve session'i canli tutar. Cookie'ler expire olmadan once
- * yenilenir ve veritabanina kaydedilir.
+ * Bu modul Envato'ya otomatik giris yaparak tum cookie'leri
+ * (HttpOnly dahil) alir ve veritabanina kaydeder.
  * 
  * Calisma mantigi:
- * 1. Her 15 dakikada bir calisir
- * 2. DB'den mevcut cookie'leri alir
- * 3. Playwright ile Envato'ya gider
- * 4. Sayfa yuklenince yeni cookie'leri alir
+ * 1. Her 6 saatte bir calisir (veya session expire oldugunda)
+ * 2. Login sayfasina gider
+ * 3. Email/sifre ile giris yapar
+ * 4. Tum cookie'leri alir (HttpOnly dahil)
  * 5. DB'ye kaydeder
  */
 
@@ -17,12 +16,19 @@ const { chromium } = require('playwright');
 const cron = require('node-cron');
 const { getTypeCookie, updateTypeCookie } = require('../controllers/MysqlController');
 
+// Envato Hesap Bilgileri
+const ENVATO_CREDENTIALS = {
+    email: process.env.ENVATO_EMAIL || 'rodinyatools@rodinyadijital.com',
+    password: process.env.ENVATO_PASSWORD || 'Oguzhan99.'
+};
+
 // Konfigürasyon
 const CONFIG = {
-    // Her 15 dakikada bir calistir (*/15 * * * *)
-    cronSchedule: '*/15 * * * *',
+    // Her 6 saatte bir calistir (session sure asimi oncesi)
+    cronSchedule: '0 */6 * * *',
     
     // Envato Elements URL'leri
+    loginUrl: 'https://account.envato.com/sign_in?to=elements',
     targetUrl: 'https://elements.envato.com/account',
     baseUrl: 'https://elements.envato.com',
     
@@ -36,19 +42,21 @@ const CONFIG = {
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-blink-features=AutomationControlled'
         ]
     },
     
     // Timeout ayarlari (ms)
-    navigationTimeout: 60000,
-    waitTimeout: 10000,
+    navigationTimeout: 90000,
+    waitTimeout: 15000,
+    loginTimeout: 60000,
     
     // Cookie refresh islemi aktif mi?
     enabled: true,
     
     // Log prefix
-    logPrefix: '[ENVATO-REFRESH]'
+    logPrefix: '[ENVATO-LOGIN]'
 };
 
 /**
