@@ -1,22 +1,8 @@
 const mysql = require('mysql2/promise');
-
-const config = {
-    host: '188.132.168.79',
-    user: 'itemstok_org',
-    password: 'WrNuGSDlK6W7rKgG',
-    database: 'itemstok_org',
-    charset: 'utf8mb4',
-    // Bağlantı havuzu ayarları
-    waitForConnections: true, // Havuzdaki tüm bağlantılar meşgul olduğunda yeni bir bağlantı beklesin mi?
-    connectionLimit: 10,     // Maksimum aynı anda açık tutulacak bağlantı sayısı (önemli!)
-    queueLimit: 0,           // Bağlantı almak için bekleyen maksimum istek sayısı (0 = sınırsız)
-    idleTimeout: 60000,      // Boşta duran bağlantıların otomatik olarak kapanma süresi (ms)
-    enableKeepAlive: true,   // Bağlantıları canlı tutmak için TCP keep-alive paketleri gönderir.
-    keepAliveInitialDelay: 0 // Keep-alive ilk gecikmesi
-};
+const { DB_CONFIG } = require('../config/credentials');
 
 // Uygulama başladığında bir kez havuzu oluşturun
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(DB_CONFIG);
 
 // Artık her fonksiyonda bağlantı açıp kapatmak yerine havuzu kullanacağız.
 // getFreepikAccountsCookies fonksiyonunu güncellenmiş hali:
