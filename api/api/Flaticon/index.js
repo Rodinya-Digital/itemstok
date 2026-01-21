@@ -111,7 +111,7 @@ const getItemFlatIcon = async (getTheUrl, downloadButtonSelectorKey) => {
                 fs.mkdirSync(downloadPath);
             }
 
-            const browser = await puppeteer.launch({
+            browser = await puppeteer.launch({
                 headless: 'new',
                 args: [
                     '--disable-cache',
