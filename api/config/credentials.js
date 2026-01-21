@@ -84,6 +84,7 @@ module.exports = {
     API_KEY,
     ENVATO_CREDENTIALS,
     TELEGRAM_CONFIG,
+    CAPTCHA_CONFIG,
     SERVICE_PREFIXES,
     TIMEOUTS,
     validateApiKey
