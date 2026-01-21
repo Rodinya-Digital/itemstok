@@ -72,7 +72,7 @@ async function getFreepikDownChecker() {
         console.log('Freepik DownChecker Finished');
         setTimeout(() => {
             getFreepikDownChecker()
-        },10000)
+        }, 300000)
     }
 }
 
