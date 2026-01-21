@@ -116,7 +116,7 @@ app.get('/envato-refresh-status', async (req, res) => {
 // Envato ZORLA LOGIN Endpoint'i (Yeni cookie almak icin)
 app.get('/envato-force-login', async (req, res) => {
     const key = req.query.key;
-    if (key !== 'sdasdas333') {
+    if (!validateApiKey(key)) {
         return res.json({ success: false, error: 'Invalid key' });
     }
     
