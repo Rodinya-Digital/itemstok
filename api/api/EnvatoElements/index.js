@@ -62,6 +62,149 @@ async function humanType(page, selector, text) {
 }
 
 /**
+ * 2Captcha ile reCAPTCHA çöz
+ */
+async function solveCaptchaWith2Captcha(siteKey, pageUrl) {
+    console.log(`${CONFIG.logPrefix} 2Captcha ile captcha çözülüyor...`);
+    console.log(`${CONFIG.logPrefix} Site Key: ${siteKey}`);
+    
+    try {
+        // 1. Captcha çözüm isteği gönder
+        const requestUrl = `http://2captcha.com/in.php?key=${CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${encodeURIComponent(pageUrl)}&json=1`;
+        
+        const requestResponse = await axios.get(requestUrl, { timeout: 30000 });
+        console.log(`${CONFIG.logPrefix} 2Captcha istek yanıtı:`, requestResponse.data);
+        
+        if (requestResponse.data.status !== 1) {
+            throw new Error(`2Captcha istek hatası: ${requestResponse.data.request}`);
+        }
+        
+        const captchaId = requestResponse.data.request;
+        console.log(`${CONFIG.logPrefix} Captcha ID: ${captchaId}`);
+        
+        // 2. Çözümü bekle (ortalama 20-60 saniye)
+        let solution = null;
+        const maxAttempts = 30; // 30 deneme x 5 saniye = max 150 saniye
+        
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); // 5 saniye bekle
+            
+            const resultUrl = `http://2captcha.com/res.php?key=${CAPTCHA_API_KEY}&action=get&id=${captchaId}&json=1`;
+            const resultResponse = await axios.get(resultUrl, { timeout: 30000 });
+            
+            console.log(`${CONFIG.logPrefix} 2Captcha sonuç (${i + 1}/${maxAttempts}):`, resultResponse.data.status);
+            
+            if (resultResponse.data.status === 1) {
+                solution = resultResponse.data.request;
+                break;
+            } else if (resultResponse.data.request !== 'CAPCHA_NOT_READY') {
+                throw new Error(`2Captcha çözüm hatası: ${resultResponse.data.request}`);
+            }
+        }
+        
+        if (!solution) {
+            throw new Error('2Captcha zaman aşımı - captcha çözülemedi');
+        }
+        
+        console.log(`${CONFIG.logPrefix} Captcha ÇÖZÜLDÜ! Token: ${solution.substring(0, 50)}...`);
+        return solution;
+        
+    } catch (error) {
+        console.error(`${CONFIG.logPrefix} 2Captcha hatası:`, error.message);
+        throw error;
+    }
+}
+
+/**
+ * Sayfada Captcha var mı kontrol et ve varsa çöz
+ */
+async function handleCaptchaIfPresent(page) {
+    console.log(`${CONFIG.logPrefix} Captcha kontrolü yapılıyor...`);
+    
+    try {
+        // reCAPTCHA iframe veya div var mı kontrol et
+        const recaptchaFrame = await page.$('iframe[src*="recaptcha"]');
+        const recaptchaDiv = await page.$('.g-recaptcha, [data-sitekey]');
+        const hcaptchaDiv = await page.$('.h-captcha, [data-hcaptcha-sitekey]');
+        
+        if (!recaptchaFrame && !recaptchaDiv && !hcaptchaDiv) {
+            console.log(`${CONFIG.logPrefix} Captcha YOK, devam ediliyor...`);
+            return false;
+        }
+        
+        console.log(`${CONFIG.logPrefix} CAPTCHA TESPİT EDİLDİ!`);
+        
+        // Site key'i bul
+        let siteKey = null;
+        
+        if (recaptchaDiv) {
+            siteKey = await page.evaluate(() => {
+                const el = document.querySelector('.g-recaptcha, [data-sitekey]');
+                return el ? el.getAttribute('data-sitekey') : null;
+            });
+        }
+        
+        if (!siteKey) {
+            // Sayfa kaynağından site key ara
+            const pageContent = await page.content();
+            const siteKeyMatch = pageContent.match(/data-sitekey=["']([^"']+)["']/);
+            if (siteKeyMatch) {
+                siteKey = siteKeyMatch[1];
+            }
+        }
+        
+        if (!siteKey) {
+            // Envato'nun bilinen site key'i
+            siteKey = '6LcjX04UAAAAANHJ3jT8TPbv1BlGmymOxfFwj-wt';
+            console.log(`${CONFIG.logPrefix} Site key bulunamadı, varsayılan kullanılıyor: ${siteKey}`);
+        }
+        
+        console.log(`${CONFIG.logPrefix} Site Key: ${siteKey}`);
+        
+        // 2Captcha ile çöz
+        const pageUrl = page.url();
+        const captchaToken = await solveCaptchaWith2Captcha(siteKey, pageUrl);
+        
+        // Token'ı sayfaya inject et
+        await page.evaluate((token) => {
+            // g-recaptcha-response textarea'sına token'ı yaz
+            const responseTextarea = document.querySelector('#g-recaptcha-response, [name="g-recaptcha-response"], textarea[name="g-recaptcha-response"]');
+            if (responseTextarea) {
+                responseTextarea.style.display = 'block';
+                responseTextarea.value = token;
+            }
+            
+            // Callback fonksiyonunu çağır (varsa)
+            if (typeof window.grecaptcha !== 'undefined' && window.grecaptcha.getResponse) {
+                // Bazen callback fonksiyonu otomatik çağrılır
+            }
+            
+            // Hidden input olarak da ekle
+            const form = document.querySelector('form');
+            if (form) {
+                let input = form.querySelector('input[name="g-recaptcha-response"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'g-recaptcha-response';
+                    form.appendChild(input);
+                }
+                input.value = token;
+            }
+        }, captchaToken);
+        
+        console.log(`${CONFIG.logPrefix} Captcha token sayfaya enjekte edildi!`);
+        await page.waitForTimeout(1000);
+        
+        return true;
+        
+    } catch (error) {
+        console.error(`${CONFIG.logPrefix} Captcha işleme hatası:`, error.message);
+        throw error;
+    }
+}
+
+/**
  * Envato'ya giriş yap ve session bilgilerini döndür
  */
 async function loginToEnvato(browser) {
