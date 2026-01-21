@@ -22,6 +22,9 @@ const getItemFlaticon = require('./api/Flaticon/index');
 // Envato Cookie Refresher - Session'lari canli tutar
 const EnvatoCookieRefresher = require('./services/EnvatoCookieRefresher');
 
+// Merkezi Credentials Config
+const { S3_CONFIG, API_KEY, TELEGRAM_CONFIG, validateApiKey } = require('./config/credentials');
+
 const {
     getGoFilesFile,
     getTypeCookie
@@ -29,15 +32,14 @@ const {
 var axios = require('axios');
 var FormData = require('form-data');
 
+// AWS S3 - Merkezi config kullan
 const AWS = require('aws-sdk');
-const spacesEndpoint = new AWS.Endpoint('r8w1.fra.idrivee2-36.com');
-const ID = '7M6ATvoK22BBflnKg9K8';
-const SECRET = 'ffEJ2j5mbNbzdzaxbdqt2527226xm5Aj60SU4CX2';
-const BUCKET_NAME = 'itemstok';
+const spacesEndpoint = new AWS.Endpoint(S3_CONFIG.endpoint);
+const BUCKET_NAME = S3_CONFIG.bucketName;
 const AwsS3 = new AWS.S3({
     endpoint: spacesEndpoint,
-    accessKeyId: ID,
-    secretAccessKey: SECRET
+    accessKeyId: S3_CONFIG.accessKeyId,
+    secretAccessKey: S3_CONFIG.secretAccessKey
 });
 
 setInterval(async () => {
