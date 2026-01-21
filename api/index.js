@@ -60,32 +60,9 @@ try {
 }
 
 const NotificationSMS = (message) => {
-    /* var request = require('request');
-     var options = {
-         'method': 'POST',
-         'url': 'https://api.netgsm.com.tr/sms/send/get/',
-         'headers': {},
-         formData: {
-             'usercode': '8503094032',
-             'password': '22C1C.4',
-             /!*'gsmno': '5523863450',*!/
-             'gsmno': '5375576327',
-             'msgheader': '8503094032',
-             'message': message,
-             'dil': 'TR'
-         }
-     };
-     request(options, function (error, response) {
-         if (error) {
-             fs.appendFileSync('./logs/smslogs/logs.txt', JSON.stringify(error, null, 2))
-         }
-         console.log(response.body);
-     });*/
-    const token = '8097121235:AAHOlFfgxfhqG_tBMnuGcvRnR6xj6n2bbus';
-    const bot = new TelegramBot(token, {polling: false});
-    bot.sendMessage('-4748936019', message.replaceAll('\\n', '%0A'));
-
-
+    // Telegram Bot - Merkezi config kullan
+    const bot = new TelegramBot(TELEGRAM_CONFIG.token, {polling: false});
+    bot.sendMessage(TELEGRAM_CONFIG.chatId, message.replaceAll('\\n', '%0A'));
 }
 
 
