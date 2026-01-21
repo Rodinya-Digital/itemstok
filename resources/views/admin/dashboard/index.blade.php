@@ -5,225 +5,197 @@
 @endsection
 
 @section('content')
-    <style>
-        .volt-bg {
-            background-color: #576574 !important;
-        }
-    </style>
 
-    <div class="col-12">
-        <div class="ios-blur p-4 d-flex align-items-center gap-4 mb-4 text-white">
+    <!-- Admin Welcome Header -->
+    <div class="col-12 mb-4">
+        <div class="ios-blur p-4 d-flex align-items-center gap-4" data-testid="admin-welcome-header">
             <div class="position-relative mr-4">
-                <div class="border border-2 border-primary rounded-circle">
-                    <img src="{{asset('SolarTheme/images/profile/user-'.\Auth::user()->avatar.'.jpg')}}" class="rounded-circle m-1" alt="user1" width="60">
+                <div style="border: 3px solid var(--brand-primary); border-radius: 50%; padding: 3px;">
+                    <img src="{{asset('SolarTheme/images/profile/user-'.\Auth::user()->avatar.'.jpg')}}" class="rounded-circle" alt="admin" width="60" height="60">
                 </div>
+                <span style="position: absolute; bottom: 5px; right: 0; width: 14px; height: 14px; background: var(--error); border-radius: 50%; border: 2px solid var(--bg-card);"></span>
             </div>
             <div>
-                <h3 class="fw-semibold">{{\Auth::user()->name.' '.\Auth::user()->surname}}
+                <h3 class="fw-bold mb-1" style="font-family: 'Outfit', sans-serif;">
+                    {{__("Admin Panel")}} 
                 </h3>
-                <span>Hoş geldiniz.</span>
+                <p class="mb-0" style="color: var(--text-secondary);">{{__("Welcome")}}, {{\Auth::user()->name.' '.\Auth::user()->surname}}</p>
+            </div>
+            <div class="ms-auto">
+                <span class="badge bg-danger" style="padding: 8px 16px;">
+                    <i class="fas fa-shield-alt me-1"></i>{{__("Administrator")}}
+                </span>
             </div>
         </div>
     </div>
 
-
-    <div class="row">
-        <div class="col">
-            <div class="card border-0 zoom-in bg-primary-subtle shadow-none">
-                <div class="card-body">
-                    <div class="text-center">
-                        <img src="{{asset('SolarTheme/images/svgs/icon-user-male.svg')}}" width="50" height="50" class="mb-3" alt="modernize-img">
-                        <p class="fw-semibold fs-3 text-primary mb-1">
-                            {{__("Yönetici")}}
-                        </p>
-                        <h5 class="fw-semibold text-primary mb-0">{{$adminUsers->count()}}</h5>
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg col-md-6 col-6">
+            <div class="stat-card h-100" data-testid="admins-stat" style="border-left: 4px solid var(--brand-primary);">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="width: 44px; height: 44px; background: rgba(99,102,241,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-user-shield" style="color: var(--brand-primary); font-size: 1rem;"></i>
                     </div>
                 </div>
+                <div class="stat-value" style="font-size: 1.5rem;">{{$adminUsers->count()}}</div>
+                <div class="stat-label">{{__("Administrators")}}</div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-0 zoom-in bg-warning-subtle shadow-none">
-                <div class="card-body">
-                    <div class="text-center">
-                        <img src="{{asset('SolarTheme/images/svgs/icon-briefcase.svg')}}" width="50" height="50" class="mb-3" alt="modernize-img">
-                        <p class="fw-semibold fs-3 text-warning mb-1">{{__('Costumers')}}</p>
-                        <h5 class="fw-semibold text-warning mb-0">{{$userCount}}</h5>
+        <div class="col-lg col-md-6 col-6">
+            <div class="stat-card h-100" data-testid="customers-stat" style="border-left: 4px solid var(--warning);">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="width: 44px; height: 44px; background: rgba(245,158,11,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-users" style="color: var(--warning); font-size: 1rem;"></i>
                     </div>
                 </div>
+                <div class="stat-value" style="font-size: 1.5rem;">{{$userCount}}</div>
+                <div class="stat-label">{{__("Customers")}}</div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-0 zoom-in bg-info-subtle shadow-none">
-                <div class="card-body">
-                    <div class="text-center">
-                        <img src="{{asset('SolarTheme/images/svgs/icon-mailbox.svg')}}" width="50" height="50" class="mb-3" alt="modernize-img">
-                        <p class="fw-semibold fs-3 text-info mb-1">{{__('Register Today')}}</p>
-                        <h5 class="fw-semibold text-info mb-0">{{$todayRegUserCount}}</h5>
+        <div class="col-lg col-md-6 col-6">
+            <div class="stat-card h-100" data-testid="today-register-stat" style="border-left: 4px solid var(--info);">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-user-plus" style="color: var(--info); font-size: 1rem;"></i>
                     </div>
                 </div>
+                <div class="stat-value" style="font-size: 1.5rem;">{{$todayRegUserCount}}</div>
+                <div class="stat-label">{{__("Register Today")}}</div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-0 zoom-in bg-danger-subtle shadow-none">
-                <div class="card-body">
-                    <div class="text-center">
-                        <img src="{{asset('SolarTheme/images/svgs/icon-favorites.svg')}}" width="50" height="50" class="mb-3" alt="modernize-img">
-                        <p class="fw-semibold fs-3 text-danger mb-1">{{__('Today Define')}}</p>
-                        <h5 class="fw-semibold text-danger mb-0">{{$todayRegServiceCount}}</h5>
+        <div class="col-lg col-md-6 col-6">
+            <div class="stat-card h-100" data-testid="today-services-stat" style="border-left: 4px solid var(--error);">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="width: 44px; height: 44px; background: rgba(239,68,68,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-bolt" style="color: var(--error); font-size: 1rem;"></i>
                     </div>
                 </div>
+                <div class="stat-value" style="font-size: 1.5rem;">{{$todayRegServiceCount}}</div>
+                <div class="stat-label">{{__("Today Define")}}</div>
             </div>
         </div>
-        <div class="col">
-            <div class="card border-0 zoom-in bg-success-subtle shadow-none">
-                <div class="card-body">
-                    <div class="text-center">
-                        <img src="{{asset('SolarTheme/images/svgs/icon-speech-bubble.svg')}}" width="50" height="50" class="mb-3" alt="modernize-img">
-                        <p class="fw-semibold fs-3 text-success mb-1">T.K. Balance</p>
-                        <h5 class="fw-semibold text-success mb-0">{{number_format(\App\User::where('balance','>',0)->sum('balance'),2)}} ₺</h5>
+        <div class="col-lg col-md-6 col-6">
+            <div class="stat-card h-100" data-testid="total-balance-stat" style="border-left: 4px solid var(--success);">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="width: 44px; height: 44px; background: rgba(16,185,129,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-wallet" style="color: var(--success); font-size: 1rem;"></i>
                     </div>
                 </div>
+                <div class="stat-value" style="font-size: 1.3rem; color: var(--success);">{{number_format(\App\User::where('balance','>',0)->sum('balance'),2)}} ₺</div>
+                <div class="stat-label">{{__("Total Balance")}}</div>
             </div>
         </div>
     </div>
 
-    <div class="row g-5 g-xl-8">
-        <div class="col-xl-12 mb-5">
-            <!--begin::Chart widget 38-->
-            <div class="card card-flush">
-                <!--begin::Header-->
-                <div class="card-header pt-7">
-                    <!--begin::Title-->
-                    <div style="display: flex;justify-content: space-between;">
-                        <span class="fw-bold text-gray-800">{{__('Download History')}}</span>
-
-                        <div class="d-flex align-items-center">
-                            <label for="dateRangeSelect" class="me-3">{{__('Gösterilen:')}}</label>
-                            <select class="form-select" id="dateRangeSelect" style="width: 150px;">
-                                <option value="7" selected>{{__('Son 7 Gün')}}</option>
-                                <option value="14">{{__('Son 14 Gün')}}</option>
-                                <option value="30">{{__('Son 30 Gün')}}</option>
-                                <option value="90">{{__('Son 90 Gün')}}</option>
-                            </select>
+    <!-- Download History Chart -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-12">
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2" style="color: var(--brand-primary);"></i>
+                        {{__('Download History')}}
+                    </h5>
+                    <select class="form-select" id="dateRangeSelect" style="width: 150px;" data-testid="download-date-select">
+                        <option value="7" selected>{{__('Last 7 Days')}}</option>
+                        <option value="14">{{__('Last 14 Days')}}</option>
+                        <option value="30">{{__('Last 30 Days')}}</option>
+                        <option value="90">{{__('Last 90 Days')}}</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-9">
+                            <div id="downloadHistoryChart" style="min-height: 350px;">
+                                <div class="d-flex justify-content-center align-items-center" style="height: 350px;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="sr-only">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3">
+                            <div id="activeServicesStat"></div>
                         </div>
                     </div>
-                    <!--end::Title-->
-
-                    <!--begin::Date Range Selector-->
-
-                    <!--end::Date Range Selector-->
-
                 </div>
+            </div>
+        </div>
+    </div>
 
-
-                <!--end::Header-->
-                <!--begin::Body-->
-
-                <div class="row px-4">
-                    <div class="col-sm-9 ">
-                        <div id="downloadHistoryChart" class="w-100 min-h-auto ps-4 pe-6">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="sr-only">Loading...</span>
+    <!-- Payment History Chart -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-12">
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2" style="color: var(--success);"></i>
+                        {{__('Payment History')}}
+                    </h5>
+                    <select class="form-select" id="dateRangeSelectPayments" style="width: 150px;" data-testid="payment-date-select">
+                        <option value="7" selected>{{__('Last 7 Days')}}</option>
+                        <option value="14">{{__('Last 14 Days')}}</option>
+                        <option value="30">{{__('Last 30 Days')}}</option>
+                        <option value="90">{{__('Last 90 Days')}}</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-9">
+                            <div id="paymentHistoryChart" style="min-height: 350px;">
+                                <div class="d-flex justify-content-center align-items-center" style="height: 350px;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="sr-only">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3">
+                            <div class="extra-info p-4">
+                                <h6 class="text-center mb-4" style="font-family: 'Outfit', sans-serif;">{{__("Payment Summary")}}</h6>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("Today")}}:</span>
+                                    <span id="todayTotal" style="color: var(--success); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("Yesterday")}}:</span>
+                                    <span id="yesterdayTotal" style="color: var(--text-primary); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("This Week")}}:</span>
+                                    <span id="thisWeekTotal" style="color: var(--info); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("Last Week")}}:</span>
+                                    <span id="lastWeekTotal" style="color: var(--text-primary); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("This Month")}}:</span>
+                                    <span id="thisMonthTotal" style="color: var(--warning); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("Last Month")}}:</span>
+                                    <span id="lastMonthTotal" style="color: var(--text-primary); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span style="color: var(--text-secondary);">{{__("This Year")}}:</span>
+                                    <span id="thisYearTotal" style="color: var(--brand-primary); font-weight: 600;">Loading...</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span style="color: var(--text-secondary);">{{__("Last Year")}}:</span>
+                                    <span id="befYearTotal" style="color: var(--text-primary); font-weight: 600;">Loading...</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-sm-3" id="activeServicesStat">
-
-                    </div>
-                </div>
-
-                <!--end: Card Body-->
-            </div>
-            <!--end::Chart widget 38-->
-        </div>
-    </div>
-    <div class="row g-5 g-xl-8">
-        <div class="col-xl-12 mb-5">
-            <!--begin::Chart widget 38-->
-            <div class="card card-flush ">
-                <!--begin::Header-->
-                <div class="card-header pt-7">
-                    <!--begin::Title-->
-                    <div style="display: flex;justify-content: space-between;">
-                        <span class="fw-bold text-gray-800">{{__('Günlere Göre Ödemeler')}}</span>
-
-                        <div class="d-flex align-items-center">
-                            <label for="dateRangeSelectPayments" class="me-3">{{__('Gösterilen:')}}</label>
-                            <select class="form-select" id="dateRangeSelectPayments" style="width: 150px;">
-                                <option value="7" selected>{{__('Son 7 Gün')}}</option>
-                                <option value="14">{{__('Son 14 Gün')}}</option>
-                                <option value="30">{{__('Son 30 Gün')}}</option>
-                                <option value="90">{{__('Son 90 Gün')}}</option>
-                            </select>
-                        </div>
-                    </div>
-                    <!--end::Title-->
-
-                    <!--begin::Date Range Selector-->
-
-                    <!--end::Date Range Selector-->
-
-                </div>
-
-
-                <!--end::Header-->
-                <!--begin::Body-->
-                <div class="row">
-                    <div class="col-sm-9">
-                        <div id="paymentHistoryChart" class="w-100 min-h-auto ps-4 pe-6">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="sr-only">Loading...</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-sm-3" style="padding: 0 35px">
-                        <style>
-                            .extra-info {
-                                background-color: #f8f9fa;
-                                border-radius: 8px;
-                                padding: 15px;
-                                box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-                                margin-top: 20px;
-                            }
-
-                            .extra-info h3 {
-                                font-size: 1.25rem;
-                                font-weight: bold;
-                                margin-bottom: 15px;
-                                color: #343a40;
-                            }
-
-                            .extra-info p {
-                                font-size: 1rem;
-                                margin-bottom: 10px;
-                                display: flex;
-                                justify-content: space-between;
-                                font-weight: bold;
-                            }
-
-                            .extra-info p span {
-                                color: #007bff;
-                            }
-                        </style>
-                        <div class="extra-info">
-                            <h3 class="text-center">Ekstra Bilgiler</h3>
-                            <p>Bugün: <span id="todayTotal">Yükleniyor...</span></p>
-                            <p>Dün: <span id="yesterdayTotal">Yükleniyor...</span></p>
-                            <p>Bu Hafta: <span id="thisWeekTotal">Yükleniyor...</span></p>
-                            <p>Geçen Hafta: <span id="lastWeekTotal">Yükleniyor...</span></p>
-                            <p>Bu Ay: <span id="thisMonthTotal">Yükleniyor...</span></p>
-                            <p>Geçen Ay: <span id="lastMonthTotal">Yükleniyor...</span></p>
-                            <p>Bu Yıl: <span id="thisYearTotal">Yükleniyor...</span></p>
-                            <p>Geçen Yıl: <span id="befYearTotal">Yükleniyor...</span></p>
-                        </div>
-                    </div>
                 </div>
             </div>
-            <!--end: Card Body-->
-
         </div>
     </div>
-    <div class="row g-5 g-xl-8 mb-8">
+
+    <!-- Recent Tables Row -->
+    <div class="row g-4 mb-4">
 <div class="col-xl-12 mb-5">
     <div class="card">
         <div class="card-body">
