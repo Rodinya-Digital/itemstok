@@ -215,7 +215,15 @@ const getItemFlatIcon = async (getTheUrl, downloadButtonSelectorKey) => {
             
             return resolve({ success: true, url: downloadUrl });
         } catch (e) {
-            await browser.close();
+            // Hata durumunda da browser'ı kapat (memory leak önleme)
+            if (browser) {
+                try {
+                    await browser.close();
+                } catch (closeError) {
+                    console.error('Browser kapatma hatası:', closeError.message);
+                }
+                browser = null;
+            }
             return reject(e);
         }
     });
