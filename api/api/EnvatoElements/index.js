@@ -20,6 +20,9 @@ const archiver = require('archiver');
 // Merkezi config
 const { S3_CONFIG, ENVATO_CREDENTIALS } = require('../../config/credentials');
 
+// 2Captcha API Key
+const CAPTCHA_API_KEY = process.env.CAPTCHA_API_KEY || 'f11f25a7e32dfb9ddf74eec3181a19f4';
+
 const AWS = require('aws-sdk');
 const spacesEndpoint = new AWS.Endpoint(S3_CONFIG.endpoint);
 const BUCKET_NAME = S3_CONFIG.bucketName;
