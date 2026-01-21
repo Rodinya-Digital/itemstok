@@ -83,7 +83,7 @@ function buildApiUrl(contentType, slugID, sourceSlugId = null) {
         VIDEO: `https://www.freepik.com/api/video/${sourceSlugId}/download?walletId=#walletId#&optionId=${slugID}`,
         ICON: `https://www.freepik.com/api/icon/download?walletId=#walletId#&optionId=${slugID}&format=svg&type=original`,
         MODEL_3D: `https://www.freepik.com/api/model3d/${slugID}/download?walletId=#walletId#&fileType=blend`,
-        FONT: `https://www.freepik.com/api/fonts/download?id=${slugID}&walletId=1304323c-15c9-4031-a3cb-24f8337498f3`,
+        FONT: `https://www.freepik.com/api/fonts/download?id=${slugID}&walletId=error-tracker-58`,
         VECTOR: `https://www.freepik.com/api/regular/download?walletId=#walletId#&resource=${slugID}&action=download&locale=en`
     };
 
