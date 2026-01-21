@@ -208,7 +208,7 @@ app.get('/', async function (req, res) {
     console.log('KEY : ', dw, url, user_id, videoSelected)
 
 
-    if (key !== "sdasdas333") {
+    if (!validateApiKey(key)) {
         return res.json({"success": false, "result": "Invalid Key !"})
     }
     switch (dw) {
