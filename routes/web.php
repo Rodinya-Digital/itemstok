@@ -305,7 +305,7 @@ Route::name('api.')->prefix('api')->middleware(['auth'])->group(function () {
                 "name" => 'flaticon',
                 "value" => request()->url
             ]);
-            $result = json_decode(file_get_contents('https://188.132.168.79:3450/?key=sdasdas333&dw==flaticon&url=' . request()->url . '&dwType=' . request()->dwType));
+            $result = json_decode(file_get_contents('http://188.132.168.79:3450/?key=sdasdas333&dw=flaticon&url=' . request()->url . '&dwType=' . request()->dwType));
             if ($result->success) {
                 $logInto->type = 'success';
             } else {
