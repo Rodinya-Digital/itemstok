@@ -206,7 +206,13 @@ const getItemFlatIcon = async (getTheUrl, downloadButtonSelectorKey) => {
             console.log('#Flaticon ## İndirme Butonuna Tıklandı Gelen Selector : ' + downloadButtonSelector.selector);
 
             const downloadUrl = await waitForDownload();
-            await browser.close();
+            
+            // Browser'ı kapat
+            if (browser) {
+                await browser.close();
+                browser = null;
+            }
+            
             return resolve({ success: true, url: downloadUrl });
         } catch (e) {
             await browser.close();
