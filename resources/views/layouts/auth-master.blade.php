@@ -22,6 +22,8 @@
     <link href="{{asset('assets_connect/css/connect.min.css')}}" rel="stylesheet">
     <link href="{{asset('assets_connect/css/dark_theme.css')}}" rel="stylesheet">
     <link href="{{asset('assets_connect/css/custom.css')}}" rel="stylesheet">
+    <!-- SEO Group Buy Modern Theme -->
+    <link href="{{asset('assets_connect/css/seo-groupbuy-theme.css')}}" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
