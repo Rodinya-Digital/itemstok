@@ -1,0 +1,130 @@
+{
+  "project_name": "Item Stock - Premium Content Downloader",
+  "design_philosophy": {
+    "theme": "Cyber-Professional Dark Mode",
+    "inspiration": "SEO Group Buy Tools, Hacker Dashboards, SaaS Dark Mode",
+    "core_values": [
+      "Efficiency: Dense information, quick actions",
+      "Exclusivity: Premium 'Club' feel",
+      "Clarity: High contrast for data and limits"
+    ]
+  },
+  "tech_stack_strategy": {
+    "framework": "Laravel Blade (Existing)",
+    "css_framework": "Tailwind CSS (MANDATORY - Install via CDN or NPM to replace/overlay Bootstrap)",
+    "js_framework": "Alpine.js (Recommended for new interactions) or jQuery (Legacy support)",
+    "icons": "FontAwesome 6 (Pro/Free) + Simple Icons (for Brand Logos)"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Outfit, sans-serif",
+      "weights": ["600", "700"],
+      "usage": "Page titles, Card headers, Big numbers"
+    },
+    "body": {
+      "font_family": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "General text, descriptions, table data"
+    },
+    "monospace": {
+      "font_family": "JetBrains Mono, monospace",
+      "weights": ["400"],
+      "usage": "API Keys, License Codes, Transaction IDs"
+    }
+  },
+  "colors": {
+    "background": {
+      "main": "#020617",
+      "secondary": "#0f172a",
+      "card": "#1e293b",
+      "input": "#0f172a"
+    },
+    "text": {
+      "primary": "#f8fafc",
+      "secondary": "#94a3b8",
+      "muted": "#64748b"
+    },
+    "border": {
+      "default": "#334155",
+      "active": "#475569"
+    },
+    "brand": {
+      "primary": "#6366f1",
+      "primary_hover": "#4f46e5",
+      "secondary": "#ec4899"
+    },
+    "status": {
+      "success": "#10b981",
+      "warning": "#f59e0b",
+      "error": "#ef4444",
+      "info": "#3b82f6"
+    },
+    "services": {
+      "envato": "#81B441",
+      "freepik": "#3075FF",
+      "shutterstock": "#EE2B25",
+      "flaticon": "#17D1C6",
+      "motion_array": "#5C5CFF",
+      "epidemic_sound": "#F2F2F2"
+    }
+  },
+  "layout_structure": {
+    "dashboard_grid": "Bento Grid (Auto-fit columns)",
+    "sidebar": "Fixed left, dark glassmorphism (backdrop-blur-md)",
+    "topbar": "Sticky top, minimal, balance display prominent",
+    "card_style": "Rounded-xl, 1px border (slate-700), subtle inner glow"
+  },
+  "components": {
+    "service_card": {
+      "description": "Compact card with logo, status dot, and 'Access' button",
+      "style": "bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-indigo-500 transition-all duration-300 group relative overflow-hidden",
+      "elements": [
+        "Logo (Centered or Top Left)",
+        "Service Name (Bold)",
+        "Status Indicator (Green dot = Active)",
+        "Action Button (Full width or Icon)"
+      ]
+    },
+    "stats_widget": {
+      "description": "Key metrics (Balance, Downloads Today)",
+      "style": "bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6"
+    },
+    "download_input": {
+      "description": "Main action area for pasting URLs",
+      "style": "Large input field, monospace font, neon focus ring"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "Use backdrop-blur-lg for modals and sticky headers",
+    "gradients": "Subtle radial gradients in background to break flatness",
+    "glows": "Box-shadow with colored spread on hover (e.g., shadow-indigo-500/20)"
+  },
+  "image_urls": {
+    "logos": {
+      "envato": "https://cdn.simpleicons.org/envato/81B441",
+      "freepik": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Freepik_Logo.svg/2560px-Freepik_Logo.svg.png",
+      "shutterstock": "https://cdn.simpleicons.org/shutterstock/EE2B25",
+      "flaticon": "https://media.flaticon.com/dist/min/img/logo/flaticon_negative.svg",
+      "motion_array": "https://cdn.simpleicons.org/motionarray/white",
+      "epidemic_sound": "https://cdn.simpleicons.org/epidemicsound/white"
+    },
+    "placeholders": {
+      "user_avatar": "https://ui-avatars.com/api/?name=User&background=6366f1&color=fff",
+      "banner": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop"
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. INSTALL TAILWIND CSS: Since the project is Laravel Mix + Bootstrap, you MUST add Tailwind. Use the CDN method for the quickest UI overhaul without breaking the build pipeline, OR install via npm if you are comfortable configuring Mix.",
+    "2. OVERRIDE BOOTSTRAP: Use Tailwind utility classes to override Bootstrap styles. Add '!important' if necessary or disable Bootstrap CSS for specific pages.",
+    "3. DARK MODE DEFAULT: Force dark mode styles. Set 'bg-slate-950' on the body tag.",
+    "4. USE BLADE COMPONENTS: Create reusable Blade components for 'ServiceCard', 'StatBox', 'Badge' to maintain consistency.",
+    "5. PRESERVE LOGIC: Do not touch the PHP logic in the Blade files. Only change the HTML structure and CSS classes.",
+    "6. ICONS: Use FontAwesome classes (fa fa-download) or SVG icons.",
+    "7. DATA-TESTID: Add 'data-testid' to all buttons and inputs."
+  ],
+  "universal_guidelines": {
+    "spacing": "Use generous padding (p-6, p-8) inside cards.",
+    "radius": "Use rounded-xl (12px) for cards, rounded-lg (8px) for buttons.",
+    "interaction": "All interactive elements must have a hover state (brightness-110 or translate-y-1)."
+  }
+}
