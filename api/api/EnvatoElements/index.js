@@ -1,456 +1,411 @@
-const {chromium} = require('playwright');
+/**
+ * Envato Elements Downloader - v3.0 (Direct Login per Request)
+ * 
+ * Her indirme isteğinde:
+ * 1. Envato'ya giriş yap
+ * 2. CSRF token al
+ * 3. İçeriği indir
+ * 4. Tarayıcıyı kapat
+ * 
+ * Cookie yönetimi YOK - her seferinde taze session
+ */
+
+const { chromium } = require('playwright');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
-const {DownloaderHelper} = require('node-downloader-helper');
+const { DownloaderHelper } = require('node-downloader-helper');
 const archiver = require('archiver');
-const {getTypeCookie} = require('../../controllers/MysqlController');
+
+// Merkezi config
+const { S3_CONFIG, ENVATO_CREDENTIALS } = require('../../config/credentials');
 
 const AWS = require('aws-sdk');
-const spacesEndpoint = new AWS.Endpoint('r8w1.fra.idrivee2-36.com');
-const ID = '7M6ATvoK22BBflnKg9K8';
-const SECRET = 'ffEJ2j5mbNbzdzaxbdqt2527226xm5Aj60SU4CX2';
-const BUCKET_NAME = 'itemstok';
+const spacesEndpoint = new AWS.Endpoint(S3_CONFIG.endpoint);
+const BUCKET_NAME = S3_CONFIG.bucketName;
 const AwsS3 = new AWS.S3({
     endpoint: spacesEndpoint,
-    accessKeyId: ID,
-    secretAccessKey: SECRET
+    accessKeyId: S3_CONFIG.accessKeyId,
+    secretAccessKey: S3_CONFIG.secretAccessKey
 });
+
 const servicePrefix = 'ee/';
+const licensePrefx = 'ee_l/';
 
-// Cookie kaynaklari - oncelik sirasi: 1) Lokal DB, 2) Harici API (fallback)
-const EXTERNAL_API_URL = 'https://rose.voltyazilim.com.tr/VoltApiV2/envatoelements?access=Jd7LpXw9CnMqRbVt6YzKEuTf4HgW1aQs8BdNcxAz';
+// Config
+const CONFIG = {
+    loginUrl: 'https://account.envato.com/sign_in?to=elements',
+    baseUrl: 'https://elements.envato.com',
+    navigationTimeout: 120000,
+    logPrefix: '[ENVATO-DL]'
+};
 
 /**
- * Cookie'leri Playwright formatina normalize et
- * Chrome export formatindan Playwright formatina donusturur
+ * Rastgele bekleme (bot detection bypass)
  */
-function normalizeCookiesForPlaywright(cookies) {
-    if (!Array.isArray(cookies)) return [];
+function randomDelay(min = 500, max = 1500) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * İnsan benzeri yazma
+ */
+async function humanType(page, selector, text) {
+    await page.click(selector);
+    await page.waitForTimeout(randomDelay(200, 400));
+    for (const char of text) {
+        await page.type(selector, char, { delay: randomDelay(30, 80) });
+    }
+}
+
+/**
+ * Envato'ya giriş yap ve session bilgilerini döndür
+ */
+async function loginToEnvato(browser) {
+    console.log(`${CONFIG.logPrefix} Envato'ya giriş yapılıyor...`);
     
-    return cookies.map(cookie => {
-        // sameSite degerini Playwright formatina donustur
-        let sameSite = 'Lax'; // default
-        const ss = String(cookie.sameSite || '').toLowerCase();
-        if (ss === 'strict') sameSite = 'Strict';
-        else if (ss === 'none' || ss === 'no_restriction') sameSite = 'None';
-        else if (ss === 'lax') sameSite = 'Lax';
-        // 'unspecified' icin default 'Lax' kullanilir
-        
-        return {
-            name: cookie.name,
-            value: cookie.value,
-            domain: cookie.domain,
-            path: cookie.path || '/',
-            expires: cookie.expirationDate || cookie.expires || -1,
-            httpOnly: !!cookie.httpOnly,
-            secure: !!cookie.secure,
-            sameSite: sameSite
-        };
+    const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1920, height: 1080 },
+        locale: 'en-US',
+        timezoneId: 'Europe/Istanbul'
     });
+    
+    // Bot detection bypass
+    await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+        window.chrome = { runtime: {} };
+    });
+    
+    const page = await context.newPage();
+    page.setDefaultTimeout(CONFIG.navigationTimeout);
+    
+    // Login sayfasına git
+    await page.goto(CONFIG.loginUrl, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(randomDelay(1500, 3000));
+    
+    // Zaten giriş yapılmış mı kontrol et
+    const currentUrl = page.url();
+    if (!currentUrl.includes('sign_in')) {
+        console.log(`${CONFIG.logPrefix} Zaten giriş yapılmış!`);
+        return { context, page, success: true };
+    }
+    
+    // Email gir
+    console.log(`${CONFIG.logPrefix} Email giriliyor...`);
+    const emailSelector = 'input[name="user[login]"], input[type="email"], #user_login';
+    await page.waitForSelector(emailSelector, { timeout: 30000 });
+    await humanType(page, emailSelector, ENVATO_CREDENTIALS.email);
+    await page.waitForTimeout(randomDelay(300, 600));
+    
+    // Şifre gir
+    console.log(`${CONFIG.logPrefix} Şifre giriliyor...`);
+    const passwordSelector = 'input[name="user[password]"], input[type="password"], #user_password';
+    await page.waitForSelector(passwordSelector, { timeout: 30000 });
+    await humanType(page, passwordSelector, ENVATO_CREDENTIALS.password);
+    await page.waitForTimeout(randomDelay(300, 800));
+    
+    // Giriş butonuna tıkla
+    console.log(`${CONFIG.logPrefix} Giriş yapılıyor...`);
+    const submitSelector = 'button[type="submit"], input[type="submit"]';
+    await page.click(submitSelector);
+    
+    // Giriş sonrası bekle
+    await page.waitForNavigation({ waitUntil: 'networkidle', timeout: CONFIG.navigationTimeout }).catch(() => {});
+    await page.waitForTimeout(randomDelay(2000, 4000));
+    
+    // Giriş başarılı mı kontrol et
+    const finalUrl = page.url();
+    if (finalUrl.includes('sign_in') || finalUrl.includes('login')) {
+        console.error(`${CONFIG.logPrefix} GİRİŞ BAŞARISIZ!`);
+        await page.screenshot({ path: path.join(__dirname, 'login_failed.png') });
+        return { context, page, success: false, error: 'Login failed' };
+    }
+    
+    console.log(`${CONFIG.logPrefix} Giriş BAŞARILI!`);
+    return { context, page, success: true };
 }
 
 /**
- * Cookie'leri al - Once lokal DB'yi dene, basarisiz olursa harici API'ye fallback yap
+ * CSRF Token al
  */
-async function getEnvatoCookies() {
-    // 1. Oncelikle lokal veritabanindan cookie'yi dene
-    try {
-        console.log('[ENVATO] Lokal DB\'den cookie kontrol ediliyor...');
-        const localCookieData = await getTypeCookie('envatoelements');
-        
-        if (localCookieData && localCookieData.cookie) {
-            const parsedCookies = JSON.parse(localCookieData.cookie);
-            
-            // Cookie gecerli mi kontrol et (bos array degilse ve en az 3 cookie varsa)
-            if (Array.isArray(parsedCookies) && parsedCookies.length >= 3) {
-                console.log('[ENVATO] Lokal DB\'den cookie alindi! (' + localCookieData.name + ', ' + parsedCookies.length + ' cookie)');
-                // Cookie'leri Playwright formatina normalize et
-                const normalizedCookies = normalizeCookiesForPlaywright(parsedCookies);
-                return {
-                    source: 'local_db',
-                    cookies: normalizedCookies
-                };
-            }
-        }
-        console.log('[ENVATO] Lokal DB\'de gecerli cookie bulunamadi.');
-    } catch (localError) {
-        console.log('[ENVATO] Lokal DB hatasi:', localError.message);
+async function getCsrfToken(page) {
+    console.log(`${CONFIG.logPrefix} CSRF token alınıyor...`);
+    
+    await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(randomDelay(1000, 2000));
+    
+    const pageContent = await page.content();
+    const csrfMatch = pageContent.match(/window\.CSRF_TOKENS=\{(.*?)\}/);
+    
+    if (!csrfMatch) {
+        throw new Error('CSRF Token bulunamadı!');
     }
-
-    // 2. Fallback: Harici API'den cookie al
-    try {
-        console.log('[ENVATO] Harici API\'den cookie aliniyor (fallback)...');
-        const response = await axios.get(EXTERNAL_API_URL, { timeout: 10000 });
-        const {status, cookie} = response.data;
-        
-        if (status === true && cookie && Array.isArray(cookie) && cookie.length > 0) {
-            console.log('[ENVATO] Harici API\'den cookie alindi! (' + cookie.length + ' cookie)');
-            // Harici API'den gelen cookie'ler de normalize edilmeli
-            const normalizedCookies = normalizeCookiesForPlaywright(cookie);
-            return {
-                source: 'external_api',
-                cookies: normalizedCookies
-            };
-        }
-        throw new Error('Harici API gecersiz yanit dondu');
-    } catch (apiError) {
-        console.error('[ENVATO] Harici API hatasi:', apiError.message);
-        throw new Error('Cookie alinamadi - ne lokal DB ne de harici API calisiyor!');
+    
+    const tokenMatch = csrfMatch[1].match(/"(.*?)"/g);
+    if (!tokenMatch || tokenMatch.length < 2) {
+        throw new Error('CSRF Token parse edilemedi!');
     }
+    
+    const csrfToken = tokenMatch[1].replace(/"/g, '');
+    console.log(`${CONFIG.logPrefix} CSRF Token alındı: ${csrfToken.substring(0, 20)}...`);
+    
+    return csrfToken;
 }
 
+/**
+ * Cookie string oluştur
+ */
+async function getCookieString(context) {
+    const cookies = await context.cookies();
+    return cookies.map(c => `${c.name}=${c.value}`).join('; ');
+}
 
-const getItemEnvatoElements = async (slugx) => {
-    return new Promise(async (resolve, reject) => {
-        let fileNameExp;
-        const headersconfig = {
-            'content-type': 'application/json',
-            'x-csrf-token': false,
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-            'cookie': false
-        };
-        console.log('içerik talep edildi : ' + slugx);
+/**
+ * İçerik indir
+ */
+async function downloadItem(itemId, csrfToken, cookieString) {
+    console.log(`${CONFIG.logPrefix} İçerik indiriliyor: ${itemId}`);
+    
+    const headers = {
+        'content-type': 'application/json',
+        'x-csrf-token': csrfToken,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'cookie': cookieString
+    };
+    
+    const response = await axios.post(
+        `https://elements.envato.com/elements-api/items/${itemId}/download_and_license.json`,
+        {
+            licenseType: 'project',
+            projectName: 'MYLICENSE',
+            pixelsquidFormat: 'psd'
+        },
+        { headers, timeout: 60000 }
+    );
+    
+    console.log(`${CONFIG.logPrefix} İndirme URL'si alındı!`);
+    return response.data.data.attributes.downloadUrl;
+}
 
-        const getCsrfToken = () => {
-            return new Promise(async (resolve, reject) => {
-                let browser, context, page;
-                try {
-                    // Launch browser
-                    browser = await chromium.launch({
-                        headless: true,
-                        args: [
-                            '--disable-web-security',
-                            '--disable-features=TranslateUI',
-                            '--disable-ipc-flooding-protection',
-                            '--disable-background-timer-throttling',
-                            '--disable-backgrounding-occluded-windows',
-                            '--disable-renderer-backgrounding',
-                            '--disable-field-trial-config',
-                            '--disable-back-forward-cache',
-                            '--disable-extensions',
-                            '--no-first-run',
-                            '--no-default-browser-check',
-                            '--disk-cache-size=0',
-                            '--media-cache-size=0'
-                        ]
-                    });
-
-                    // Create a new context and page
-                    context = await browser.newContext({
-                        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
-                        viewport: {width: 1920, height: 1080},
-                        // Cache'i tamamen devre dışı bırak
-                        // Extra HTTP headers ile cache kontrolü
-                        extraHTTPHeaders: {
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache',
-                            'Expires': '0'
-                        }
-                    });
-
-                    page = await context.newPage();
-                    // Tüm cache türlerini devre dışı bırak
-
-// Network interceptor ile cache headers'ı kontrol et
-                    await page.route('**/*', async route => {
-                        const request = route.request();
-
-                        // Cache-Control header'larını ekle/değiştir
-                        const headers = {
-                            ...request.headers(),
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache',
-                            'Expires': '0'
-                        };
-
-                        await route.continue({headers});
-                    });
-
-
-                    // Intercept network requests
-                    await page.route('https://account.envato.com/api/sign_out', route => route.abort());
-                    await page.route('https://account.envato.com/api/public/refresh_id_token', route => route.abort());
-                    await page.route('https://account.envato.com/api/auto_sign_in', route => route.abort());
-                    await page.route('https://consent.cookiebot.com/uc.js', route => route.abort());
-
-
-                    // Cookie'leri al (lokal DB veya harici API)
-                    const cookieResult = await getEnvatoCookies();
-                    let deserializedCookies = cookieResult.cookies;
-                    console.log('[ENVATO] Cookie kaynagi: ' + cookieResult.source);
-                    
-                    // Set cookies
-                    await context.addCookies(deserializedCookies);
-
-
-                    // Navigate to Envato Elements
-                    await page.goto('https://elements.envato.com/', {
-                        waitUntil: 'domcontentloaded'
-                    });
-
-                    // Sayfa yüklendikten sonra JavaScript ile cache'i temizle
-                    await page.evaluate(() => {
-                        // LocalStorage'ı temizle
-                        if (typeof (Storage) !== "undefined") {
-                            localStorage.clear();
-                            sessionStorage.clear();
-                        }
-
-                        // Service Worker cache'ini temizle
-                        if ('serviceWorker' in navigator) {
-                            navigator.serviceWorker.getRegistrations().then(registrations => {
-                                registrations.forEach(registration => {
-                                    registration.unregister();
-                                });
-                            });
-                        }
-
-                        // Cache API'sini temizle
-                        if ('caches' in window) {
-                            caches.keys().then(names => {
-                                names.forEach(name => {
-                                    caches.delete(name);
-                                });
-                            });
-                        }
-                    });
-
-                    // Wait for page to load and extract CSRF token
-                    const pageContent = await page.content();
-                    const csrfTokenMatch = pageContent.match(/window.CSRF_TOKENS={(.*?)}/);
-
-                    if (!csrfTokenMatch) {
-                        throw new Error('CSRF Token not found');
-                    }
-
-                    const axxAFirst = csrfTokenMatch[1];
-                    const axxA = axxAFirst.match(/"(.*?)"/g)[1];
-                    const CSRFTOKEN = axxA.replaceAll('"', '');
-
-                    // Prepare headers
-                    headersconfig.cookie = deserializedCookies.map((cookiessss) => {
-                        return `${cookiessss.name}=${cookiessss.value}`;
-                    }).join('; ');
-
-                    // Close browser
-                    await browser.close();
-
-                    resolve(CSRFTOKEN.trim());
-                } catch (e) {
-                    console.error('Error in getCsrfToken:', e);
-                    if (browser) await browser.close();
-                    reject(e);
-                }
-            });
-        };
-
-        const download = (id) => {
-            return new Promise((resolve, reject) => {
-                // Log the request details for debugging
-                console.log('Making download request for ID:', id);
-                console.log('Headers being sent:', JSON.stringify(headersconfig, null, 2));
-
-                // Make the request with detailed error handling
-                axios.post('https://elements.envato.com/elements-api/items/' + id + '/download_and_license.json', {
-                        licenseType: 'project',
-                        projectName: "MYLICENSE",
-                        pixelsquidFormat: "psd"
-                    },
-                    {
-                        withCredentials: false,
-                        headers: headersconfig,
-                    })
-                    .then(function (response) {
-                        console.log('Download request successful, status:', response.status);
-                        return resolve(response.data.data.attributes.downloadUrl)
-                    })
-                    .catch(function (error) {
-                        console.log('ENVATO ELEMENTS DOWNLOAD FUNC ERROR:');
-
-                        // Log detailed error information
-                        if (error.response) {
-                            // The server responded with a status code outside the 2xx range
-                            console.log('Error status:', error.response.status);
-                            console.log('Error data:', JSON.stringify(error.response.data, null, 2));
-                        } else if (error.request) {
-                            // The request was made but no response was received
-                            console.log('No response received:', error.request);
-                        } else {
-                            // Something happened in setting up the request
-                            console.log('Request setup error:', error.message);
-                        }
-
-                        return reject(error)
-                    });
-            })
-        }
-
-        const license = (id) => {
-            return new Promise((resolve, reject) => {
-                axios.post('https://elements.envato.com/api/v1/items/' + id + '/license.json', {
-                        "itemId": id,
-                        "licenseType": "project",
-                        "pixelsquidFormat": "psd",
-                        "projectName": "MYLICENSE"
-                    },
-                    {
-                        withCredentials: false,
-                        headers: headersconfig,
-                    })
-                    .then(function (response) {
-                        axios.get('https://elements.envato.com' + response.data.data.attributes.textDownloadUrl,
-                            {
-                                withCredentials: false,
-                                headers: {cookie: headersconfig.cookie},
-                            })
-                            .then(function (response) {
-                                return resolve(response.data)
-                            })
-                            .catch(function (error) {
-                                console.log("### ENVATO ELEMENTS DOWNLOAD URL GET FAILED!1 #####")
-                                return reject(error)
-                            });
-                    })
-                    .catch(function (error) {
-                        console.log("### ENVATO ELEMENTS LICENSE GET FAILED!2 #####")
-                        return reject(error)
-                    });
-            })
-        }
-
-        let slugID = slugx.match(/-([A-Z0-9]{6,})/)
-        fileNameExp = slugID[1]
-        console.log('SlugID geted => "' + fileNameExp + '"')
-
-        let datas = {
-            license: {
-                result: false,
-                error: false
+/**
+ * Lisans al
+ */
+async function getLicense(itemId, csrfToken, cookieString) {
+    console.log(`${CONFIG.logPrefix} Lisans alınıyor: ${itemId}`);
+    
+    const headers = {
+        'content-type': 'application/json',
+        'x-csrf-token': csrfToken,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'cookie': cookieString
+    };
+    
+    try {
+        const licenseResponse = await axios.post(
+            `https://elements.envato.com/api/v1/items/${itemId}/license.json`,
+            {
+                itemId: itemId,
+                licenseType: 'project',
+                pixelsquidFormat: 'psd',
+                projectName: 'MYLICENSE'
             },
-            download: {
-                result: false,
-                error: false
-            }
-        }
-
-        try {
-            // Get CSRF Token
-            const csrfToken = await getCsrfToken();
-            headersconfig['x-csrf-token'] = csrfToken;
-            console.log('cookie csrf : ' + csrfToken);
-
-            // Download the item
-            const downloadUrl = await download(fileNameExp);
-            datas.download.result = downloadUrl;
-
-            // Get license
-            const licenseResult = await license(fileNameExp);
-            datas.license.result = licenseResult;
-
-            // Resolve with download URL
-            resolve({
-                'success': true,
-                'url': datas.download.result
-            });
-            console.log('ENVATO ELEMENTS DOWNLOAD URL RETURNED FOR COSTUMER');
-
-            // Additional processing if download is successful
-            if (datas.download.result) {
-                console.log('## ENVATO ELEMENTS DOWNLOAD URL HAVE TRY RUN... ##');
-
-                // Upload license to S3 if available
-                if (datas.license.result) {
-                    console.log('ENVATO ELEMENTS S3 UPLOADING LICENSE FILE');
-                    await AwsS3.upload({
-                        Bucket: BUCKET_NAME,
-                        Key: 'ee_l/' + fileNameExp + '.txt',
-                        Body: Buffer.from(datas.license.result, 'utf8')
-                    }).promise();
-                    console.log('ENVATO ELEMENTS S3 UPLOADED! LICENSE FILE');
-                }
-
-                // Determine filename
-                let downloaderFileNameRegex;
-                if ((datas.download.result).match(/%27%27(.*?)&Expires/)) {
-                    downloaderFileNameRegex = fileNameExp + (datas.download.result).match(/%27%27(.*?)&Expires/)[1];
-                } else {
-                    downloaderFileNameRegex = fileNameExp + (datas.download.result).match(/.+\/(.*?)\?/)[1];
-                }
-
-                console.log('## ENVATO ELEMENTS FILE DOWNLOAD STARTING... ##');
-                const dl = new DownloaderHelper(datas.download.result, __dirname + '/tempFiles', {fileName: downloaderFileNameRegex});
-
-                dl.on('end', async () => {
-                    console.log('## ENVATO ELEMENTS FILE DOWNLOAD END S3 UPLOAD STARTING... ##');
-
-                    const output = fs.createWriteStream(__dirname + '/tempFiles/' + fileNameExp + '.zip');
-                    const archive = archiver('zip', {
-                        zlib: {level: 0} // Sets the compression level.
-                    });
-
-                    console.log('## ENVATO ELEMENTS ZIPPING START');
-                    output.on('close', async function () {
-                        console.log('ENVATO ELEMENTS S3 UPLOADING FILE');
-                        await AwsS3.upload({
-                            Bucket: BUCKET_NAME,
-                            Key: servicePrefix + fileNameExp + '.zip',
-                            Body: fs.createReadStream(__dirname + '/tempFiles/' + fileNameExp + '.zip')
-                        }).promise().then(async () => {
-                            console.log('## ENVATO ELEMENTS S3 UPLOAD FINISHED');
-
-                            // Clean up temp files
-                            if (fs.existsSync(__dirname + '/tempFiles/' + downloaderFileNameRegex))
-                                fs.unlinkSync(__dirname + '/tempFiles/' + downloaderFileNameRegex);
-                            if (fs.existsSync(__dirname + '/tempFiles/' + fileNameExp + '.zip'))
-                                fs.unlinkSync(__dirname + '/tempFiles/' + fileNameExp + '.zip');
-
-                            console.log('## ENVATO ELEMENTS S3 UPLOAD FINISHED DELETED TEMP FILES');
-                        });
-                    });
-
-                    archive.on('error', function (err) {
-                        console.log('## ENVATO ELEMENTS ZIP ERROR ', err);
-                        return reject(err);
-                    });
-
-                    archive.pipe(output);
-                    archive
-                        .append(fs.createReadStream(__dirname + '/tempFiles/' + downloaderFileNameRegex), {name: downloaderFileNameRegex})
-                        .finalize();
-                });
-
-                dl.on('download', (r) => {
-                    if (r.totalSize > 1000) { //100MB LIMITOR
-                        console.log('### ENVATO ELEMENTS MAX FILE SIZE STOP #####', r.totalSize);
-                        dl.stop();
-                        return true;
-                    }
-                });
-
-                dl.on('renamed', (r) => {
-                    dl.stop();
-                    console.log('## ENVATO ELEMENTS FILE CLONE STOP DOWNLOAD UPLOAD PROCESS', r);
-                    return true;
-                });
-
-                dl.on('stop', async () => {
-                    console.log('## ENVATO ELEMENTS STOP CALLED !!');
-                });
-
-                dl.on('error', (err) => {
-                    console.log(err.message);
-                    console.log('## ENVATO ELEMENTS FILE DOWNLOAD FAILED CODE: DL.ONL66 ##');
-                    return reject(err);
-                });
-
-                await dl.start();
-            }
-        } catch (error) {
-            console.error('Error in Envato Elements download process:', error);
-            return reject(error);
-        }
-    });
+            { headers, timeout: 30000 }
+        );
+        
+        const licenseUrl = licenseResponse.data.data.attributes.textDownloadUrl;
+        const licenseContent = await axios.get(`https://elements.envato.com${licenseUrl}`, {
+            headers: { cookie: cookieString },
+            timeout: 30000
+        });
+        
+        console.log(`${CONFIG.logPrefix} Lisans alındı!`);
+        return licenseContent.data;
+    } catch (e) {
+        console.log(`${CONFIG.logPrefix} Lisans alınamadı: ${e.message}`);
+        return null;
+    }
 }
+
+/**
+ * S3'e yükle (arka planda)
+ */
+async function uploadToS3(downloadUrl, itemId, licenseContent) {
+    try {
+        // Dosya adını belirle
+        let fileName;
+        if (downloadUrl.match(/%27%27(.*?)&Expires/)) {
+            fileName = itemId + downloadUrl.match(/%27%27(.*?)&Expires/)[1];
+        } else {
+            fileName = itemId + downloadUrl.match(/.+\/(.*?)\?/)[1];
+        }
+        
+        console.log(`${CONFIG.logPrefix} S3 yükleme başlıyor: ${fileName}`);
+        
+        // Lisansı S3'e yükle
+        if (licenseContent) {
+            await AwsS3.upload({
+                Bucket: BUCKET_NAME,
+                Key: licensePrefx + itemId + '.txt',
+                Body: Buffer.from(licenseContent, 'utf8')
+            }).promise();
+            console.log(`${CONFIG.logPrefix} Lisans S3'e yüklendi!`);
+        }
+        
+        // Dosyayı indir
+        const tempDir = path.join(__dirname, 'tempFiles');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        
+        const dl = new DownloaderHelper(downloadUrl, tempDir, { fileName: fileName });
+        
+        dl.on('end', async () => {
+            console.log(`${CONFIG.logPrefix} Dosya indirildi, zipleniyor...`);
+            
+            const zipPath = path.join(tempDir, itemId + '.zip');
+            const output = fs.createWriteStream(zipPath);
+            const archive = archiver('zip', { zlib: { level: 0 } });
+            
+            output.on('close', async () => {
+                console.log(`${CONFIG.logPrefix} S3'e yükleniyor...`);
+                
+                await AwsS3.upload({
+                    Bucket: BUCKET_NAME,
+                    Key: servicePrefix + itemId + '.zip',
+                    Body: fs.createReadStream(zipPath)
+                }).promise();
+                
+                console.log(`${CONFIG.logPrefix} S3 yükleme tamamlandı!`);
+                
+                // Temizlik
+                if (fs.existsSync(path.join(tempDir, fileName))) fs.unlinkSync(path.join(tempDir, fileName));
+                if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+            });
+            
+            archive.on('error', (err) => console.error(`${CONFIG.logPrefix} Zip hatası:`, err));
+            archive.pipe(output);
+            archive.append(fs.createReadStream(path.join(tempDir, fileName)), { name: fileName });
+            archive.finalize();
+        });
+        
+        dl.on('download', (stats) => {
+            // 500MB limit
+            if (stats.totalSize > 500000000) {
+                console.log(`${CONFIG.logPrefix} Dosya çok büyük, S3 yükleme iptal!`);
+                dl.stop();
+            }
+        });
+        
+        dl.on('error', (err) => console.error(`${CONFIG.logPrefix} İndirme hatası:`, err));
+        
+        await dl.start();
+        
+    } catch (e) {
+        console.error(`${CONFIG.logPrefix} S3 yükleme hatası:`, e.message);
+    }
+}
+
+/**
+ * Ana fonksiyon - Her istekte login yap ve indir
+ */
+const getItemEnvatoElements = async (slugUrl) => {
+    let browser = null;
+    
+    try {
+        // URL'den item ID çıkar
+        const slugMatch = slugUrl.match(/-([A-Z0-9]{6,})/);
+        if (!slugMatch) {
+            throw new Error('Geçersiz Envato Elements URL!');
+        }
+        const itemId = slugMatch[1];
+        
+        console.log(`${CONFIG.logPrefix} ========== YENİ İSTEK ==========`);
+        console.log(`${CONFIG.logPrefix} URL: ${slugUrl}`);
+        console.log(`${CONFIG.logPrefix} Item ID: ${itemId}`);
+        
+        // Önce S3'de var mı kontrol et
+        try {
+            await AwsS3.headObject({
+                Bucket: BUCKET_NAME,
+                Key: servicePrefix + itemId + '.zip'
+            }).promise();
+            
+            // S3'de var, direkt URL döndür
+            console.log(`${CONFIG.logPrefix} S3'de mevcut, cache'den döndürülüyor...`);
+            const signedUrl = await new Promise((resolve, reject) => {
+                AwsS3.getSignedUrl('getObject', {
+                    Bucket: BUCKET_NAME,
+                    Key: servicePrefix + itemId + '.zip',
+                    Expires: 3600
+                }, (err, url) => {
+                    if (err) reject(err);
+                    else resolve(url);
+                });
+            });
+            
+            return { success: true, url: signedUrl, cached: true };
+            
+        } catch (s3Err) {
+            // S3'de yok, devam et
+            console.log(`${CONFIG.logPrefix} S3'de yok, Envato'dan indirilecek...`);
+        }
+        
+        // Browser başlat
+        browser = await chromium.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-blink-features=AutomationControlled'
+            ]
+        });
+        
+        // 1. Login yap
+        const loginResult = await loginToEnvato(browser);
+        if (!loginResult.success) {
+            throw new Error('Envato girişi başarısız!');
+        }
+        
+        const { context, page } = loginResult;
+        
+        // 2. CSRF Token al
+        const csrfToken = await getCsrfToken(page);
+        
+        // 3. Cookie string al
+        const cookieString = await getCookieString(context);
+        
+        // 4. İçeriği indir
+        const downloadUrl = await downloadItem(itemId, csrfToken, cookieString);
+        
+        // 5. Lisans al
+        const licenseContent = await getLicense(itemId, csrfToken, cookieString);
+        
+        // 6. Browser'ı kapat
+        await browser.close();
+        browser = null;
+        
+        console.log(`${CONFIG.logPrefix} İndirme URL'si müşteriye döndürülüyor...`);
+        
+        // 7. S3'e yükle (arka planda)
+        uploadToS3(downloadUrl, itemId, licenseContent).catch(e => {
+            console.error(`${CONFIG.logPrefix} Arka plan S3 yükleme hatası:`, e.message);
+        });
+        
+        return { success: true, url: downloadUrl };
+        
+    } catch (error) {
+        console.error(`${CONFIG.logPrefix} HATA:`, error.message);
+        
+        if (browser) {
+            try { await browser.close(); } catch (e) {}
+        }
+        
+        throw error;
+    }
+};
 
 module.exports = getItemEnvatoElements;
