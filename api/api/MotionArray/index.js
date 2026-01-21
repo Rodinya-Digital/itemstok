@@ -98,7 +98,13 @@ const downloadAndUploadS3License = async (cookies, slugID, browser) => {
     }catch (e) {
         console.log('INDIRME BAŞARILI OLDUMU BİLMİYORUZ AMA DOSYAYI AŞAĞIDA ARIYACAĞIZ LİSANS DOSYASI')
         setTimeout(async ()=>{
-            const directoryPath = 'C:/Users/Administrator/Downloads';
+            // Linux uyumlu path - proje içinde tempFiles klasörü kullan
+            const directoryPath = path.join(__dirname, 'tempFiles');
+            
+            // Klasör yoksa oluştur
+            if (!fs.existsSync(directoryPath)) {
+                fs.mkdirSync(directoryPath, { recursive: true });
+            }
             const searchPattern = slugID;
 
             fs.readdir(directoryPath, (err, files) => {
